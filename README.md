@@ -3,7 +3,24 @@
 A lightweight Python Flask microservice designed to serve as a mock backend for a C# application (https://github.com/KAZABUILD/KAZABUILD). It provides pricing data for computer components (CPUs, GPUs, RAM) by querying a local SQLite database and applying dynamic pricing formulas based on component specifications.
 
 ## specific_usage
-### Option 1: Running with Docker (Recommended)
+### Option 1: Running with Docker Compose (Recommended)
+0.  **Update docker-compose.yml (better to create docker-compose.override.yml)**
+    ```bash
+    volumes:
+      # Map your local folders to the container
+      - C:\data:/app/data
+      - C:\images:/app/images
+    ```
+1.  **Build the image:**
+    ```bash
+    docker-compose up --build
+    ```
+2.  **Run the container:**
+    ```bash
+    docker run -p 5000:5000 mock-price-api
+    ```
+
+### Option 2: Running with Docker
 1.  **Build the image:**
     ```bash
     docker build -t mock-price-api .
@@ -13,7 +30,7 @@ A lightweight Python Flask microservice designed to serve as a mock backend for 
     docker run -p 5000:5000 mock-price-api
     ```
 
-### Option 2: Running Locally (Python)
+### Option 3: Running Locally (Python)
 1.  Install dependencies:
     ```bash
     pip install -r requirements.txt

@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  mock-api:
+    build: .
+    container_name: mock-price-api
+    ports:
+      - "5000:5000"
+    volumes:
+      # Map your local folders to the container
+      - C:\data:/app/data
+      - C:\images:/app/images
+    environment:
+      - FLASK_ENV=development
+    restart: unless-stopped
