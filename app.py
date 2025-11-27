@@ -2,17 +2,16 @@ import sqlite3
 import json
 import os
 import glob
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, url_for
 
 app = Flask(__name__)
 
 # Configuration 
 DB_NAME = 'components.db'
-
 DB_DIR = os.environ.get('DB_DIR', '.')
 DB_PATH = os.path.join(DB_DIR, DB_NAME)
-
 DATA_SOURCE_DIR = os.environ.get('DATA_SOURCE_DIR', os.path.join('.', 'data', 'open-db'))
+IMAGES_DIR = os.environ.get('IMAGES_DIR', os.path.join('.', 'images'))
 
 def get_db_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -68,8 +67,6 @@ def seed_database(conn):
             if file.endswith('.json'):
                 file_path = os.path.join(root, file)
                 
-                # The folder name is the component type (e.g., 'CPU')
-                # We get the last part of the path: data/open-db/CPU -> CPU
                 component_type = os.path.basename(root)
                 
                 try:
@@ -163,26 +160,60 @@ def calculate_price(component_type, specs):
 
     return round(price, 2)
 
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    """
+    Serves the actual image file from the local directory.
+    """
+    return send_from_directory(IMAGES_DIR, filename)
+
+def get_image_url(component_type, component_name):
+    """
+    Logic to map a component to an image filename.
+    Currently defaults to {Type}.jpg (e.g., CPU.jpg).
+    """
+    # Map by Type
+    filename = f"{component_type}.jpg"
+
+    # Generates a full URL
+    return url_for('serve_image', filename=filename, _external=True)
+
 # API routes
 @app.route('/get-price', methods=['POST'])
 def get_component_price():
     data = request.get_json()
+    
     if not data or 'name' not in data or 'type' not in data:
         return jsonify({"error": "Invalid request. 'name' and 'type' required."}), 400
 
+    req_name = data['name']
+    req_type = data['type']
+
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute('SELECT specs FROM components WHERE name = ? AND type = ?', (data['name'], data['type']))
+    cursor.execute('SELECT specs FROM components WHERE name = ? AND type = ?', (req_name, req_type))
     row = cursor.fetchone()
     conn.close()
 
     if row:
         specs = json.loads(row['specs'])
+        
+        # Calculate Price
+        price_val = calculate_price(req_type, specs)
+        
+        # Generate Image URL
+        img_url = get_image_url(req_type, req_name)
+        
         return jsonify({
-            "status": 200, "component": data['name'], "type": data['type'],
-            "price": calculate_price(data['type'], specs), "currency": "PLN"
-        })
-    return jsonify({"status": 404, "error": "Component not found"}), 404
+            "status": 200,
+            "component": req_name,
+            "type": req_type,
+            "price": price_val,
+            "currency": "PLN",
+            "imageUrl": img_url 
+        }), 200
+    else:
+        return jsonify({"status": 404, "error": "Component not found"}), 404
 
 if __name__ == '__main__':
     init_db()
