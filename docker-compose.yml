@@ -4,8 +4,9 @@ services:
   mock-api:
     build: .
     container_name: mock-price-api
-    ports:
-      - "5000:5000"
+    # Map your ports in docker-compose.override.yml
+    # ports:
+    #   - "4900:4900"
     volumes:
       # Map your local folders to the container
       - C:\data:/app/data
