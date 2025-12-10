@@ -4,13 +4,16 @@ services:
   mock-api:
     build: .
     container_name: mock-price-api
-    # Map your ports in docker-compose.override.yml
-    # ports:
-    #   - "4900:4900"
+      
     volumes:
-      # Map your local folders to the container
-      - C:\data:/app/data
-      - C:\images:/app/images
+      - railway_data:/app/data
+      - railway_images:/app/images
+      
     environment:
-      - FLASK_ENV=development
+      - FLASK_ENV=production
+      - PORT=5000 
     restart: unless-stopped
+
+volumes:
+  railway_data:
+  railway_images:
