@@ -4,16 +4,9 @@ services:
   mock-api:
     build: .
     container_name: mock-price-api
-      
-    volumes:
-      - railway_data:/app/data
-      - railway_images:/app/images
-      
+    ports:
+      - "5000:5000"
     environment:
       - FLASK_ENV=production
-      - PORT=5000 
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
-
-volumes:
-  railway_data:
-  railway_images:

@@ -2,15 +2,12 @@ FROM python:3.9-slim
 
 WORKDIR /app
 
-ENV PYTHONUNBUFFERED=1
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
-RUN pip install --no-cache-dir -r requirements.txt
-
-RUN mkdir -p /app/data /app/images
-
-ENV DATA_DIR=/app/data
+ENV PYTHONUNBUFFERED=1
 
 EXPOSE 5000
 
