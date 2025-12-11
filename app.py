@@ -148,7 +148,7 @@ def calculate_price(component_type, specs):
 
         price = max(200, min(price, 1500))
 
-    elif component_type == 'RAM':
+    elif component_type == 'Memory':
         qty = get_safe_val(specs, 'modules.quantity', 1)
         cap = get_safe_val(specs, 'modules.capacity_gb', 8)
         speed = get_safe_val(specs, 'speed', 3200)
@@ -173,21 +173,21 @@ def calculate_price(component_type, specs):
         price = 30 + cap * per_gb
         price = max(50, min(price, 1000))
 
-    elif component_type == 'PSU':
+    elif component_type == 'PowerSupply':
         watts = get_safe_val(specs, 'wattage', 500)
         modular = get_safe_val(specs, 'modular', '')
 
         price = 120 + (watts * 0.3) + (80 if 'Full' in modular else 0)
         price = max(150, min(price, 800))
 
-    elif component_type == 'PCCase':
+    elif component_type == 'Case':
         vol = get_safe_val(specs, 'volume', 40)
         glass = get_safe_val(specs, 'has_transparent_side_panel', False)
 
         price = 100 + (vol * 2) + (60 if glass else 0)
         price = max(120, min(price, 500))
 
-    elif component_type == 'CPUCooler':
+    elif component_type == 'Cooler':
         if get_safe_val(specs, 'water_cooled', False):
             rad = get_safe_val(specs, 'radiator_size', 240)
             price = 200 + rad * 0.7
@@ -203,7 +203,38 @@ def calculate_price(component_type, specs):
 
         price = (size * 0.25) * qty
         price = max(15, min(price, 200))
+        
+    elif component_type == 'Monitor':
+            size = get_safe_val(specs, 'screen_size', 24)
+            refresh = get_safe_val(specs, 'refresh_rate', 60)
+            panel = get_safe_val(specs, 'panel_type', 'TN')
+            
+            # Resolution calculation (default to 1080p if missing)
+            h_res = get_safe_val(specs, 'resolution.horizontalRes', 1920)
+            v_res = get_safe_val(specs, 'resolution.verticalRes', 1080)
+            total_pixels = h_res * v_res
 
+            # Base price formula
+            price = 300  # Base cost
+            price += (size - 24) * 20  # Add cost for size above 24"
+            price += (refresh - 60) * 1.5  # Add cost for high refresh rate
+            
+            # Panel Type premium
+            if panel in ['OLED', 'QD-OLED', 'Mini-LED']:
+                price += 1500
+            elif panel == 'IPS':
+                price += 100
+            elif panel == 'VA':
+                price += 50
+                
+            # Resolution premium (roughly)
+            if total_pixels > 8000000: # 4K
+                price += 800
+            elif total_pixels > 3600000: # 1440p
+                price += 300
+                
+            price = max(350, min(price, 8000))
+            
     else:
         # Default for unknown types
         logger.warning(f"Unknown component type '{component_type}' encountered in price calc.")
