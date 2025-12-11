@@ -105,54 +105,92 @@ def calculate_price(component_type, specs):
     
     if component_type == 'CPU':
         cores = get_safe_val(specs, 'cores.total', 4)
-        perf_cores = get_safe_val(specs, 'cores.performance', 0)
+        perf = get_safe_val(specs, 'cores.performance', cores)  # assume all performance if missing
         boost = get_safe_val(specs, 'clocks.performance.boost', 3.0)
-        price = 500 + (perf_cores * 150) + ((cores - perf_cores) * 50) + (boost * 200)
+
+        # Base: cheap dual/quad cores
+        price = 100 + (cores * 40) + (perf * 20) + ((boost - 3.0) * 80)
+
+        # Clamp prices
+        price = max(150, min(price, 3500))
 
     elif component_type == 'GPU':
         vram = get_safe_val(specs, 'memory', 4)
         bus = get_safe_val(specs, 'memory_bus', 128)
-        price = 1000 + (vram * 150) + (bus * 2)
-        if '4090' in get_safe_val(specs, 'chipset', '') or '7900 XTX' in get_safe_val(specs, 'chipset', ''):
-            price += 4000
+
+        price = 150 + (vram * 60) + (bus * 0.4)
+
+        chipset = get_safe_val(specs, 'chipset', '')
+        if any(x in chipset for x in ['4090', '4080', '7900 XTX', '7900 XT']):
+            price += 3000
+
+        price = max(250, min(price, 9000))
 
     elif component_type == 'Motherboard':
         ram_slots = get_safe_val(specs, 'memory.slots', 2)
-        m2_count = len(specs.get('m2_slots') or [])
-        pcie_count = len(specs.get('pcie_slots') or [])
-        price = 400 + (ram_slots * 50) + (m2_count * 100) + (pcie_count * 50)
-        if get_safe_val(specs, 'wireless_networking'): price += 150
+        m2 = len(specs.get('m2_slots') or [])
+        pcie = len(specs.get('pcie_slots') or [])
+        wifi = get_safe_val(specs, 'wireless_networking', False)
+
+        price = 150 + (ram_slots * 30) + (m2 * 60) + (pcie * 20) + (150 if wifi else 0)
+
+        price = max(200, min(price, 1500))
 
     elif component_type == 'RAM':
         qty = get_safe_val(specs, 'modules.quantity', 1)
         cap = get_safe_val(specs, 'modules.capacity_gb', 8)
-        total = qty * cap
-        price = 100 + (total * 12) + (get_safe_val(specs, 'speed', 3200) * 0.1)
+        speed = get_safe_val(specs, 'speed', 3200)
+
+        total_gb = qty * cap
+        price = 40 + (total_gb * 6) + ((speed - 2400) * 0.02)
+
+        price = max(60, min(price, 600))
 
     elif component_type == 'Storage':
         cap = get_safe_val(specs, 'capacity', 500)
-        is_ssd = 'SSD' in get_safe_val(specs, 'type', 'HDD')
-        per_gb = 0.4 if is_ssd else 0.15
-        if get_safe_val(specs, 'nvme', False): per_gb = 0.55
-        price = 100 + (cap * per_gb)
+        ssd = 'SSD' in get_safe_val(specs, 'type', 'HDD')
+        nvme = get_safe_val(specs, 'nvme', False)
+
+        if nvme:
+            per_gb = 0.22
+        elif ssd:
+            per_gb = 0.18
+        else:
+            per_gb = 0.10
+
+        price = 30 + cap * per_gb
+        price = max(50, min(price, 1000))
 
     elif component_type == 'PSU':
         watts = get_safe_val(specs, 'wattage', 500)
-        price = 200 + (watts * 0.5) + (200 if 'Full' in get_safe_val(specs, 'modular', '') else 0)
+        modular = get_safe_val(specs, 'modular', '')
+
+        price = 120 + (watts * 0.3) + (80 if 'Full' in modular else 0)
+        price = max(150, min(price, 800))
 
     elif component_type == 'PCCase':
         vol = get_safe_val(specs, 'volume', 40)
         glass = get_safe_val(specs, 'has_transparent_side_panel', False)
-        price = 200 + (vol * 5) + (100 if glass else 0)
+
+        price = 100 + (vol * 2) + (60 if glass else 0)
+        price = max(120, min(price, 500))
 
     elif component_type == 'CPUCooler':
         if get_safe_val(specs, 'water_cooled', False):
-            price = 300 + (get_safe_val(specs, 'radiator_size', 240) * 1.5)
+            rad = get_safe_val(specs, 'radiator_size', 240)
+            price = 200 + rad * 0.7
         else:
-            price = 100 + (get_safe_val(specs, 'height', 150) * 1.0)
+            height = get_safe_val(specs, 'height', 150)
+            price = 60 + height * 0.6
+
+        price = max(80, min(price, 600))
             
     elif component_type == 'CaseFan':
-        price = (get_safe_val(specs, 'size', 120) * 0.4) * get_safe_val(specs, 'quantity', 1)
+        size = get_safe_val(specs, 'size', 120)
+        qty = get_safe_val(specs, 'quantity', 1)
+
+        price = (size * 0.25) * qty
+        price = max(15, min(price, 200))
 
     else:
         # Default for unknown types
