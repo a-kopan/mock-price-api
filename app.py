@@ -2,7 +2,15 @@ import sqlite3
 import json
 import os
 import glob
+import logging
 from flask import Flask, request, jsonify, send_from_directory, url_for
+
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
@@ -22,6 +30,7 @@ def init_db():
     """
     Initializes the database and seeds it if empty.
     """
+    logger.info("Initializing database connection...")
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -42,10 +51,10 @@ def init_db():
     count = cursor.fetchone()[0]
     
     if count == 0:
-        print(f"Database empty. Seeding from {DATA_SOURCE_DIR}...")
+        logger.info(f"Database empty. Seeding from {DATA_SOURCE_DIR}...")
         seed_database(conn)
     else:
-        print(f"Database already contains {count} items. Skipping seed.")
+        logger.info(f"Database already contains {count} items. Skipping seed.")
         
     conn.close()
 
@@ -55,13 +64,14 @@ def seed_database(conn):
     and inserts it into the database.
     """
     if not os.path.exists(DATA_SOURCE_DIR):
-        print(f"WARNING: Data source directory '{DATA_SOURCE_DIR}' not found. Database will be empty.")
+        logger.warning(f"WARNING: Data source directory '{DATA_SOURCE_DIR}' not found. Database will be empty.")
         return
 
     cursor = conn.cursor()
     inserted_count = 0
 
     # Walk through each folder in the open-db directory
+    logger.info(f"Walking through directory: {DATA_SOURCE_DIR}")
     for root, dirs, files in os.walk(DATA_SOURCE_DIR):
         for file in files:
             if file.endswith('.json'):
@@ -83,10 +93,10 @@ def seed_database(conn):
                         )
                         inserted_count += 1
                 except Exception as e:
-                    print(f"Error loading {file_path}: {e}")
+                    logger.error(f"Error loading {file_path}: {e}")
 
     conn.commit()
-    print(f"Successfully seeded {inserted_count} components into the database.")
+    logger.info(f"Successfully seeded {inserted_count} components into the database.")
 
 # Pricing Logic
 def get_safe_val(data, path, default=0):
@@ -97,7 +107,9 @@ def get_safe_val(data, path, default=0):
             if current is None: return default
             current = current.get(key)
         return current if current is not None else default
-    except:
+    except Exception as e:
+        # Debug level logging for safe value extraction failures to avoid noise
+        logger.debug(f"Error retrieving path '{path}': {e}")
         return default
 
 def calculate_price(component_type, specs):
@@ -194,6 +206,7 @@ def calculate_price(component_type, specs):
 
     else:
         # Default for unknown types
+        logger.warning(f"Unknown component type '{component_type}' encountered in price calc.")
         price = 150.0
 
     return round(price, 2)
@@ -203,6 +216,7 @@ def serve_image(filename):
     """
     Serves the actual image file from the local directory.
     """
+    logger.info(f"Serving image: {filename}")
     return send_from_directory(IMAGES_DIR, filename)
 
 def get_image_url(component_type, component_name):
@@ -222,10 +236,13 @@ def get_component_price():
     data = request.get_json()
     
     if not data or 'name' not in data or 'type' not in data:
+        logger.warning("Received invalid price request: Missing name or type.")
         return jsonify({"error": "Invalid request. 'name' and 'type' required."}), 400
 
     req_name = data['name']
     req_type = data['type']
+    
+    logger.info(f"Requesting price for: Type='{req_type}', Name='{req_name}'")
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -242,6 +259,8 @@ def get_component_price():
         # Generate Image URL
         img_url = get_image_url(req_type, req_name)
         
+        logger.info(f"Found '{req_name}': Calculated Price {price_val} PLN")
+        
         return jsonify({
             "status": 200,
             "component": req_name,
@@ -251,9 +270,12 @@ def get_component_price():
             "imageUrl": img_url 
         }), 200
     else:
+        logger.warning(f"Component not found in DB: Type='{req_type}', Name='{req_name}'")
         return jsonify({"status": 404, "error": "Component not found"}), 404
 
 if __name__ == '__main__':
+    logger.info("Starting Flask application...")
     init_db()
     port = int(os.environ.get('PORT', 5000)) 
+    logger.info(f"Running on port {port}")
     app.run(host='0.0.0.0', port=port)
